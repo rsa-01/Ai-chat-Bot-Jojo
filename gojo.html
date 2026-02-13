@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>For Mahdiya ❤️</title>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent; /* Removes blue highlight on tap */
+        }
+
+        body {
+            background: #ffe6e9;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Floating Hearts Animation */
+        .heart-bg {
+            position: absolute;
+            color: rgba(255, 183, 197, 0.6);
+            top: -10vh;
+            z-index: 0;
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(110vh); }
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(255, 77, 109, 0.2);
+            text-align: center;
+            width: 90%; /* Occupies 90% of phone screen width */
+            max-width: 400px; /* Stops it getting too big on desktop */
+            z-index: 10;
+            position: relative;
+            max-height: 85vh; /* Prevents it being taller than screen */
+            overflow-y: auto; /* Allows scrolling inside the card */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-family: 'Dancing Script', cursive;
+            color: #d32f2f;
+            font-size: 2rem; /* Smaller font for mobile */
+            margin-bottom: 15px;
+            line-height: 1.2;
+        }
+
+        p {
+            font-size: 1rem;
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        /* Buttons Area */
+        .btn-group {
+            width: 100%;
+            height: 60px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            transition: transform 0.2s;
+            outline: none;
+        }
+
+        .btn-yes {
+            background-color: #ff4d6d;
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 77, 109, 0.4);
+            z-index: 2; /* Ensures Yes is always clickable */
+        }
+        
+        .btn-yes:active { transform: scale(0.95); }
+
+        .btn-no {
+            background-color: #e0e0e0;
+            color: #333;
+            position: absolute; 
+            /* Positioned relative to btn-group initially */
+            right: 20px; 
+        }
+
+        /* Gift Animation */
+        .gift-box {
+            font-size: 5rem;
+            cursor: pointer;
+            animation: bounce 2s infinite;
+            margin: 15px 0;
+            -webkit-user-select: none; /* Prevents highlighting on tap */
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-20px);}
+            60% {transform: translateY(-10px);}
+        }
+
+        /* Final Content Styling */
+        .hidden { display: none !important; }
+        
+        .lilies-img {
+            width: 100%;
+            height: 200px; /* Fixed height for mobile consistency */
+            object-fit: cover;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            border: 3px solid #fff;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .quote-container {
+            text-align: left;
+            background-color: #fff0f3;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            border-left: 4px solid #ff4d6d;
+        }
+
+        .quote-text {
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+
+        .final-msg {
+            font-family: 'Dancing Script', cursive;
+            font-size: 1.6rem;
+            color: #d32f2f;
+            margin-top: 15px;
+        }
+        
+        /* Mobile specific adjustments */
+        @media (max-width: 400px) {
+            h1 { font-size: 1.8rem; }
+            .btn-yes { padding: 10px 25px; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <audio id="bgMusic" loop>
+        <source src="song.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="hearts-container"></div>
+
+    <div class="container">
+        
+        <div id="step1" style="width: 100%;">
+            <h1>Hey Mahdiya...<br>I have a question.</h1>
+            <p>Will you go on a date with me this <b>February 14th?</b></p>
+            
+            <div class="btn-group">
+                <button class="btn-yes" onclick="showGift()">YES!</button>
+                
+                <button class="btn-no" id="noBtn" onclick="moveButton()" ontouchstart="moveButton()">NO</button>
+            </div>
+        </div>
+
+        <div id="step2" class="hidden" style="width: 100%;">
+            <h1>Yay! I knew it! ❤️</h1>
+            <p>I have a little gift for you...</p>
+            <div class="gift-box" onclick="openGift()">🎁</div>
+            <p style="font-size: 0.8rem; color: #888;">(Tap to open)</p>
+        </div>
+
+        <div id="step3" class="hidden" style="width: 100%;">
+            <img src="lilies.jpg" alt="Lilies" class="lilies-img" onerror="this.src='https://images.unsplash.com/photo-1526047932273-341f2a7631f9?q=80&w=800&auto=format&fit=crop'">
+            
+            <div class="final-msg">"Put your hand in mine..."</div>
+            
+            <div class="quote-container">
+                <p class="quote-text">"Mahdiya, you are the poem I never knew how to write and this life is the melody I want to play for you."</p>
+                <p class="quote-text">"I don't just want a date for Valentine's. I want a memory with you that lasts forever."</p>
+            </div>
+
+            <p style="margin-top: 20px; font-weight: bold; color: #ff4d6d; font-size: 0.9rem;">See you on the 14th? 🌹</p>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Create Background Hearts ---
+        function createHearts() {
+            const container = document.getElementById('hearts-container');
+            for (let i = 0; i < 25; i++) {
+                const heart = document.createElement('div');
+                heart.classList.add('heart-bg');
+                heart.innerHTML = Math.random() > 0.5 ? '❤️' : '🌸';
+                heart.style.left = Math.random() * 100 + 'vw';
+                heart.style.animationDuration = Math.random() * 3 + 3 + 's';
+                heart.style.fontSize = Math.random() * 20 + 15 + 'px';
+                container.appendChild(heart);
+            }
+        }
+        createHearts();
+
+        // --- Move 'NO' button (Mobile Optimized) ---
+        const noBtn = document.getElementById('noBtn');
+        let moved = false;
+
+        function moveButton() {
+            // Screen dimensions
+            const maxX = window.innerWidth - noBtn.offsetWidth - 20;
+            const maxY = window.innerHeight - noBtn.offsetHeight - 20;
+
+            const x = Math.random() * maxX;
+            const y = Math.random() * maxY;
+
+            noBtn.style.position = 'fixed';
+            noBtn.style.left = `${x}px`;
+            noBtn.style.top = `${y}px`;
+            
+            // Add a high z-index so it doesn't get stuck behind things
+            noBtn.style.zIndex = "100"; 
+        }
+
+        // --- Step Logic ---
+        function showGift() {
+            document.getElementById('step1').classList.add('hidden');
+            document.getElementById('step2').classList.remove('hidden');
+        }
+
+        function openGift() {
+            document.getElementById('step2').classList.add('hidden');
+            document.getElementById('step3').classList.remove('hidden');
+            
+            // Play Music
+            const audio = document.getElementById('bgMusic');
+            audio.volume = 0.6;
+            audio.play().catch(error => {
+                console.log("Audio play failed: " + error);
+            });
+        }
+    </script>
+</body>
+</html>
