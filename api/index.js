@@ -217,6 +217,7 @@ const GENERATION_CONFIG = {
 
 // --- Chat ---
 app.post('/api/chat', authenticateToken, async (req, res) => {
+    // Vercel deployment trigger: Load new API keys
     try {
 
         const { message, files, history } = req.body;
