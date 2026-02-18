@@ -4,7 +4,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { TOTP, generateURI } = require('otplib');
@@ -23,10 +22,111 @@ app.use(express.static(path.join(__dirname, '..', 'public'))); // Serve frontend
 
 // Database Setup
 const isVercel = process.env.VERCEL === '1';
-const dbFile = isVercel ? ':memory:' : path.join(__dirname, '..', 'chatbot.db');
-const db = new sqlite3.Database(dbFile);
+let db;
 
-console.log(`Database source: ${isVercel ? 'In-Memory (Vercel)' : 'Local File'}`);
+if (isVercel) {
+    console.log('Running on Vercel: Using In-Memory Mock Database (sqlite3 excluded)');
+
+    // Mock Database Class to mimic SQLite API
+    class MockDB {
+        constructor() {
+            this.users = [];
+            this.history = [];
+            this.lastID = 0;
+        }
+
+        serialize(callback) {
+            if (callback) callback();
+        }
+
+        run(sql, params = [], callback) {
+            console.log('[MockDB Run]', sql, params);
+            // Simulate inserts
+            if (sql.startsWith('INSERT INTO users')) {
+                this.lastID++;
+                this.users.push({
+                    id: this.lastID,
+                    first_name: params[0],
+                    last_name: params[1],
+                    email: params[2],
+                    password: params[3],
+                    secret_2fa: params[4]
+                });
+                if (callback) callback.call({ lastID: this.lastID }, null);
+            } else if (sql.startsWith('INSERT INTO chat_history')) {
+                this.history.push({
+                    user_id: params[0],
+                    message: params[1],
+                    sender: params[2],
+                    session_id: params[3],
+                    timestamp: new Date().toISOString()
+                });
+                if (callback) callback(null);
+            } else {
+                if (callback) callback(null);
+            }
+        }
+
+        get(sql, params = [], callback) {
+            console.log('[MockDB Get]', sql, params);
+            if (sql.includes('SELECT * FROM users WHERE email')) {
+                const user = this.users.find(u => u.email === params[0]);
+                callback(null, user);
+            } else if (sql.includes('SELECT * FROM users WHERE id')) {
+                const user = this.users.find(u => u.id === params[0]);
+                callback(null, user);
+            } else {
+                callback(null, null);
+            }
+        }
+
+        all(sql, params = [], callback) {
+            console.log('[MockDB All]', sql, params);
+            // HISTORY
+            if (sql.includes('FROM chat_history')) {
+                // Simplistic filtering for mock purposes
+                // In a real app we'd parse the SQL, but here we just return the user's history
+                // or session history based on simple checks.
+                let results = this.history.filter(h => h.user_id === params[0]);
+
+                if (sql.includes('session_id = ?') && params[1]) {
+                    results = results.filter(h => h.session_id === params[1]);
+                }
+
+                // Reverse if needed for "DESC" logic simulation (roughly)
+                if (sql.includes('ORDER BY timestamp DESC')) {
+                    results = [...results].reverse();
+                }
+
+                // Handle session grouping query
+                if (sql.includes('GROUP BY session_id')) {
+                    // Unique sessions
+                    const sessions = {};
+                    const unique = [];
+                    this.history.forEach(h => {
+                        if (h.user_id === params[0] && h.sender === 'user' && !sessions[h.session_id]) {
+                            sessions[h.session_id] = true;
+                            unique.push(h);
+                        }
+                    });
+                    results = unique; // return representative row per session
+                }
+
+                callback(null, results);
+            } else {
+                callback(null, []);
+            }
+        }
+    }
+    db = new MockDB();
+
+} else {
+    // Local Development
+    const sqlite3 = require('sqlite3').verbose();
+    const dbFile = path.join(__dirname, '..', 'chatbot.db');
+    db = new sqlite3.Database(dbFile);
+    console.log('Running Locally: Using sqlite3 file database');
+}
 
 // Explicit Root Route for Vercel
 app.get('/', (req, res) => {
