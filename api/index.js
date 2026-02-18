@@ -236,7 +236,7 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
 
 
         // Stream response via SSE
-        const models = ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-flash-latest"];
+        const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
         let lastError;
         let streamed = false;
 
