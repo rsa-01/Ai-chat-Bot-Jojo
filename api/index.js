@@ -6,7 +6,7 @@ const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const jwt = require('jsonwebtoken');
+
 
 // 2FA Libraries with Fallback
 let TOTP, generateURI, crypto, base32, qrcode;
