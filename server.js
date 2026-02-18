@@ -19,7 +19,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-this';
 // Middleware
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'Ai Chat bot'))); // Serve frontend files
+app.use(express.static(path.join(__dirname, 'public'))); // Serve frontend files
 
 // Database Setup
 // Database Setup
@@ -31,7 +31,7 @@ console.log(`Database source: ${isVercel ? 'In-Memory (Vercel)' : 'Local File'}`
 
 // Explicit Root Route for Vercel
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'Ai Chat bot', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 db.serialize(() => {
