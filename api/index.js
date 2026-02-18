@@ -243,7 +243,7 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
 
 
         // Stream response via SSE — with Key Rotation & Retry
-        const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.0-flash-exp", "gemini-flash-latest"];
+        const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
         const keys = getApiKeys(); // Load available keys
         const sleep = (ms) => new Promise(r => setTimeout(r, ms));
         let lastError;
