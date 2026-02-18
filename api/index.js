@@ -15,6 +15,17 @@ const app = express();
 const port = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-this';
 
+app.get('/api/debug', (req, res) => {
+    res.json({
+        isVercel: process.env.VERCEL === '1',
+        nodeEnv: process.env.NODE_ENV,
+        dbType: process.env.VERCEL === '1' ? 'MockDB' : 'SQLite',
+        hasGeminiKey: !!process.env.GEMINI_API_KEY,
+        hasJwtSecret: !!process.env.JWT_SECRET,
+        cwd: process.cwd()
+    });
+});
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
