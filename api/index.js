@@ -26,7 +26,9 @@ app.get('/api/debug', (req, res) => {
 // --- Middleware ---
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Use process.cwd() for Vercel compatibility (not __dirname which points to /var/task/api/)
+const publicDir = path.join(process.cwd(), 'public');
+app.use(express.static(publicDir));
 
 // --- Database Setup ---
 // On Vercel: use in-memory store. Locally: use SQLite.
@@ -102,11 +104,11 @@ if (isVercel) {
 // --- Root Route ---
 app.get('/', (req, res) => {
     const fs = require('fs');
-    const indexPath = path.join(__dirname, '..', 'public', 'index.html');
+    const indexPath = path.join(process.cwd(), 'public', 'index.html');
     if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
     } else {
-        res.send('<h1>Server is running!</h1><p>index.html not found at: ' + indexPath + '</p>');
+        res.send('<h1>Server is running!</h1><p>index.html not found at: ' + indexPath + '</p><p>cwd: ' + process.cwd() + '</p><p>__dirname: ' + __dirname + '</p>');
     }
 });
 
