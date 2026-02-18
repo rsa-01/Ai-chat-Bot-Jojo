@@ -230,17 +230,31 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
         }
 
 
-        // Try fastest model first, fallback only if needed
+        // Stream response via SSE
         const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
         let lastError;
-        let text;
+        let streamed = false;
 
         for (const modelName of models) {
             try {
                 const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_PROMPT });
                 const chat = model.startChat({ history: formattedHistory });
-                const result = await chat.sendMessage(currentParts);
-                text = result.response.text();
+
+                // Set SSE headers before first chunk
+                res.setHeader('Content-Type', 'text/event-stream');
+                res.setHeader('Cache-Control', 'no-cache');
+                res.setHeader('Connection', 'keep-alive');
+
+                const result = await chat.sendMessageStream(currentParts);
+                for await (const chunk of result.stream) {
+                    const chunkText = chunk.text();
+                    if (chunkText) {
+                        res.write(`data: ${JSON.stringify({ chunk: chunkText })}\n\n`);
+                    }
+                }
+                res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+                res.end();
+                streamed = true;
                 break;
             } catch (err) {
                 console.warn(`Model ${modelName} failed:`, err.message.substring(0, 80));
@@ -248,17 +262,16 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
             }
         }
 
-        if (!text) throw lastError || new Error("All models failed");
-
-
-        res.json({ reply: text });
+        if (!streamed) throw lastError || new Error("All models failed");
 
     } catch (error) {
         console.error('Chat error:', error.message);
-        if (error.message.includes('429') || error.message.includes('Quota')) {
-            return res.status(429).json({ error: "Too many requests. Please wait a moment." });
+        if (!res.headersSent) {
+            if (error.message.includes('429') || error.message.includes('Quota')) {
+                return res.status(429).json({ error: "Too many requests. Please wait a moment." });
+            }
+            res.status(500).json({ error: "AI Error: " + error.message });
         }
-        res.status(500).json({ error: "AI Error: " + error.message });
     }
 });
 

@@ -571,78 +571,88 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (response.status === 401 || response.status === 403) {
-                // Token invalid/expired
                 localStorage.removeItem('chat_token');
-                location.reload(); // Go back to login
+                location.reload();
                 return;
             }
 
             if (!response.ok) {
-                const errData = await response.text(); // Try to get text (handling non-json)
+                const errData = await response.text();
                 let errMsg = 'Network response was not ok';
-                try {
-                    const jsonErr = JSON.parse(errData);
-                    errMsg = jsonErr.error || errMsg;
-                } catch (e) {
-                    errMsg = errData || response.statusText;
-                }
+                try { errMsg = JSON.parse(errData).error || errMsg; } catch (e) { errMsg = errData || response.statusText; }
                 throw new Error(errMsg);
             }
-            const data = await response.json();
 
+            // SSE streaming: render chunks as they arrive
             removeLoading(loadingId);
-            addMessage(data.reply, 'ai');
+            const aiMsgDiv = addMessage('', 'ai', true); // create empty bubble
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullText = '';
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // keep incomplete line in buffer
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    try {
+                        const parsed = JSON.parse(line.slice(6));
+                        if (parsed.chunk) {
+                            fullText += parsed.chunk;
+                            updateMessage(aiMsgDiv, fullText);
+                        }
+                    } catch (e) { }
+                }
+            }
 
         } catch (error) {
             console.error('Error:', error);
             removeLoading(loadingId);
             addMessage(`Error: ${error.message}`, 'ai');
         } finally {
-            // Re-enable input
             userInput.disabled = false;
             userInput.focus();
         }
     });
 
-    function addMessage(text, sender) {
+    function formatAiText(text) {
+        const parts = text.split(/(```[\s\S]*?```)/g);
+        return parts.map(part => {
+            if (part.startsWith('```') && part.endsWith('```')) {
+                let content = part.slice(3, -3);
+                let language = '';
+                const firstLineBreak = content.indexOf('\n');
+                if (firstLineBreak > -1) {
+                    const firstLine = content.slice(0, firstLineBreak).trim();
+                    if (firstLine && !firstLine.includes(' ')) {
+                        language = firstLine;
+                        content = content.slice(firstLineBreak + 1);
+                    }
+                }
+                return `<pre><code class="${language}">${content}</code></pre>`;
+            } else {
+                return part
+                    .replace(/`([^`]+)`/g, '<code>$1</code>')
+                    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                    .replace(/\n/g, '<br>');
+            }
+        }).join('');
+    }
+
+    function addMessage(text, sender, returnEl = false) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', sender);
 
         let contentHtml = '';
-
         if (sender === 'ai') {
-            // Advanced Markdown Parsing
-            const parts = text.split(/(```[\s\S]*?```)/g);
-            const formattedText = parts.map(part => {
-                if (part.startsWith('```') && part.endsWith('```')) {
-                    // Extract content and optional language
-                    let content = part.slice(3, -3);
-                    let language = '';
-                    const firstLineBreak = content.indexOf('\n');
-                    if (firstLineBreak > -1) {
-                        const firstLine = content.slice(0, firstLineBreak).trim();
-                        // simplistic check: if first line is short and no spaces, assume language
-                        if (firstLine && !firstLine.includes(' ')) {
-                            language = firstLine;
-                            content = content.slice(firstLineBreak + 1);
-                        }
-                    }
-                    return `<pre><code class="${language}">${content}</code></pre>`;
-                } else {
-                    return part
-                        .replace(/`([^`]+)`/g, '<code>$1</code>')
-                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-                        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-                        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-                        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-                        .replace(/\n/g, '<br>');
-                }
-            }).join('');
-
-            contentHtml = `
-                <div class="icon-col"></div>
-                <div class="content-col">${formattedText}</div>
-            `;
+            contentHtml = `<div class="icon-col"></div><div class="content-col">${formatAiText(text)}</div>`;
         } else {
             contentHtml = `<div class="bubble">${text}</div>`;
         }
@@ -650,12 +660,19 @@ document.addEventListener('DOMContentLoaded', () => {
         messageDiv.innerHTML = contentHtml;
         chatHistory.appendChild(messageDiv);
 
-        // Scroll to bottom of main content
         const mainContent = document.querySelector('.main-content');
-        mainContent.scrollTo({
-            top: mainContent.scrollHeight,
-            behavior: 'smooth'
-        });
+        mainContent.scrollTo({ top: mainContent.scrollHeight, behavior: 'smooth' });
+
+        return returnEl ? messageDiv : undefined;
+    }
+
+    function updateMessage(msgDiv, text) {
+        const contentCol = msgDiv.querySelector('.content-col');
+        if (contentCol) {
+            contentCol.innerHTML = formatAiText(text) + '<span class="cursor-blink">▋</span>';
+            const mainContent = document.querySelector('.main-content');
+            mainContent.scrollTo({ top: mainContent.scrollHeight, behavior: 'smooth' });
+        }
     }
 
     function showLoading() {
