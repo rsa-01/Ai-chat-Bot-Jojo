@@ -153,8 +153,7 @@ app.get('/', (req, res) => {
     }
 });
 
-// Initialize Gemini API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize Gemini API - Moved to request handler for safety
 
 // Authentication Middleware
 const authenticateToken = (req, res, next) => {
@@ -319,6 +318,12 @@ app.get('/api/session/:sessionId', authenticateToken, (req, res) => {
 app.post('/api/chat', authenticateToken, async (req, res) => {
     console.log('Received chat request from ' + req.user.email);
     try {
+        // Initialize Gemini API lazily to prevent startup crash if key is missing
+        if (!process.env.GEMINI_API_KEY) {
+            throw new Error("GEMINI_API_KEY is not set on the server.");
+        }
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
         const { message, files, sessionId } = req.body;
 
         if (!message && (!files || files.length === 0)) {
