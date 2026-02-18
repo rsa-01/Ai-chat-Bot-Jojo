@@ -13,13 +13,13 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-this';
 
 // --- Debug Route ---
 app.get('/api/debug', (req, res) => {
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const keys = getApiKeys();
     res.json({
         status: 'ok',
         isVercel: !!process.env.VERCEL,
         nodeVersion: process.version,
-        hasGeminiKey: !!geminiKey,
-        geminiKeyName: process.env.GEMINI_API_KEY ? 'GEMINI_API_KEY' : (process.env.GOOGLE_GENERATIVE_AI_API_KEY ? 'GOOGLE_GENERATIVE_AI_API_KEY' : 'MISSING'),
+        keyCount: keys.length,
+        activeKeys: keys.map(k => k ? k.substring(0, 5) + '...' : 'MISSING'),
         hasJwtSecret: !!process.env.JWT_SECRET,
         cwd: process.cwd()
     });
