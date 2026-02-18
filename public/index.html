@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jojo AI</title>
+    <meta name="theme-color" content="#000000">
+    <link rel="stylesheet" href="style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&family=Montserrat:wght@400;500;600;700&family=Dancing+Script:wght@400;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+
+    <!-- LOADING/TRANSITION OVERLAY (Keep existing if needed, or remove if redundant) -->
+    <div id="video-overlay" class="video-overlay hidden">
+        <video id="login-video" muted playsinline>
+            <source src="login_animation.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <!-- AUTHENTICATION CONTAINER -->
+    <div id="auth-container" class="auth-container">
+        <div class="auth-box">
+            <h2 id="auth-title">Jojo</h2>
+
+            <!-- Login Form -->
+            <form id="login-form">
+                <input type="email" id="login-email" placeholder="Email Address" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button type="submit" class="auth-btn">Login</button>
+                <p class="auth-switch">New here? <a href="#" id="show-signup">Sign up</a></p>
+            </form>
+
+            <!-- Signup Form -->
+            <form id="signup-form" class="hidden">
+                <input type="text" id="signup-firstname" placeholder="First Name" required>
+                <input type="text" id="signup-lastname" placeholder="Last Name" required>
+                <input type="email" id="signup-email" placeholder="Enter Email Address" required>
+                <input type="password" id="signup-password" placeholder="Choose Password" required>
+                <button type="submit" class="auth-btn">Sign Up</button>
+                <p class="auth-switch">Have an account? <a href="#" id="show-login">Login</a></p>
+            </form>
+
+            <!-- 2FA Setup -->
+            <div id="2fa-setup" class="hidden">
+                <p>Scan this QR Code with Google Authenticator:</p>
+                <img id="qr-code" src="" alt="2FA QR Code">
+                <p class="small-text">Then enter the code below to verify.</p>
+            </div>
+
+            <!-- 2FA Verify -->
+            <form id="2fa-form" class="hidden">
+                <input type="text" id="2fa-code" placeholder="Enter 2FA Code" required>
+                <button type="submit" class="auth-btn">Verify</button>
+            </form>
+
+            <div id="auth-error" class="error-msg"></div>
+        </div>
+    </div>
+
+    <div class="app-container hidden">
+        <!-- Sidebar / Header -->
+        <header class="top-nav">
+            <div class="logo">
+                <span>Jojo</span>
+            </div>
+            <div class="header-actions">
+                <button id="history-btn" class="icon-btn" title="History">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                        <path
+                            d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
+                    </svg>
+                </button>
+                <button id="logout-btn" class="logout-btn">Logout</button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+
+            <!-- PORTAL STATE (Initial) -->
+            <div id="portal-view" class="portal-view">
+                <div class="greeting-section">
+                    <div class="greeting-header">
+
+                        <span class="greeting-text">Hi</span>
+                    </div>
+                    <h1 class="main-question">Let's Start !!! </h1>
+                </div>
+
+
+            </div>
+
+            <!-- CHAT STATE (Hidden initially) -->
+            <div id="chat-view" class="chat-view hidden">
+                <div class="chat-history" id="chat-history">
+                    <!-- Messages will be injected here -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- INPUT AREA (Fixed or Centered based on state) -->
+        <div class="bottom-container">
+            <div class="input-box-wrapper" id="input-box-wrapper">
+                <div id="file-preview-container" class="file-preview-container"></div>
+                <form id="chat-form">
+                    <input type="file" id="file-input" multiple hidden>
+                    <div class="input-field-container">
+                        <button type="button" class="add-btn" id="add-file-btn">+</button>
+                        <textarea id="user-input" placeholder="Ask Jojo" rows="1"></textarea>
+                        <div class="input-actions">
+                            <button type="submit" id="send-btn" class="send-icon">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <div class="disclaimer">Jojo is AI and can make mistakes.</div>
+            </div>
+        </div>
+    </div>
+    <footer class="site-footer">
+        <span class="rsa-smooth">RSA</span>
+    </footer>
+    <!-- HISTORY MODAL -->
+    <div id="history-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Chat History</h2>
+                <button id="close-history" class="close-btn">&times;</button>
+            </div>
+            <div id="history-list" class="history-list">
+                <!-- History items will be injected here -->
+                <div class="history-placeholder">No history found.</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
