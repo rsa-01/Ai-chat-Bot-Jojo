@@ -32,13 +32,11 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public'))); // Serve frontend files
 
 // Database Setup
-const isVercel = process.env.VERCEL === '1';
+let isVercel = process.env.VERCEL === '1' || !!process.env.AWS_LAMBDA_FUNCTION_VERSION;
 let db;
 
-if (isVercel) {
-    console.log('Running on Vercel: Using In-Memory Mock Database (sqlite3 excluded)');
-
-    // Mock Database Class to mimic SQLite API
+const initializeMockDB = () => {
+    console.log('Using In-Memory Mock Database');
     class MockDB {
         constructor() {
             this.users = [];
@@ -52,7 +50,6 @@ if (isVercel) {
 
         run(sql, params = [], callback) {
             console.log('[MockDB Run]', sql, params);
-            // Simulate inserts
             if (sql.startsWith('INSERT INTO users')) {
                 this.lastID++;
                 this.users.push({
@@ -93,25 +90,15 @@ if (isVercel) {
 
         all(sql, params = [], callback) {
             console.log('[MockDB All]', sql, params);
-            // HISTORY
             if (sql.includes('FROM chat_history')) {
-                // Simplistic filtering for mock purposes
-                // In a real app we'd parse the SQL, but here we just return the user's history
-                // or session history based on simple checks.
                 let results = this.history.filter(h => h.user_id === params[0]);
-
                 if (sql.includes('session_id = ?') && params[1]) {
                     results = results.filter(h => h.session_id === params[1]);
                 }
-
-                // Reverse if needed for "DESC" logic simulation (roughly)
                 if (sql.includes('ORDER BY timestamp DESC')) {
                     results = [...results].reverse();
                 }
-
-                // Handle session grouping query
                 if (sql.includes('GROUP BY session_id')) {
-                    // Unique sessions
                     const sessions = {};
                     const unique = [];
                     this.history.forEach(h => {
@@ -120,33 +107,42 @@ if (isVercel) {
                             unique.push(h);
                         }
                     });
-                    results = unique; // return representative row per session
+                    results = unique;
                 }
-
                 callback(null, results);
             } else {
                 callback(null, []);
             }
         }
     }
-    db = new MockDB();
+    return new MockDB();
+};
 
+if (isVercel) {
+    console.log('Environment detected: Vercel/Serverless');
+    db = initializeMockDB();
 } else {
-    // Local Development
-    const sqlite3 = require('sqlite3').verbose();
-    const dbFile = path.join(__dirname, '..', 'chatbot.db');
-    db = new sqlite3.Database(dbFile);
-    console.log('Running Locally: Using sqlite3 file database');
+    try {
+        console.log('Environment detected: Local/Native');
+        const sqlite3 = require('sqlite3').verbose();
+        const dbFile = path.join(__dirname, '..', 'chatbot.db');
+        db = new sqlite3.Database(dbFile);
+        console.log('Connected to sqlite3 file database');
+
+        db.serialize(() => {
+            db.run("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, first_name TEXT, last_name TEXT, email TEXT UNIQUE, password TEXT, secret_2fa TEXT)");
+            db.run("CREATE TABLE IF NOT EXISTS chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, message TEXT, sender TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id))");
+        });
+    } catch (err) {
+        console.error('Failed to load sqlite3 (native module error):', err.message);
+        console.log('Falling back to MockDB due to sqlite3 error');
+        db = initializeMockDB();
+    }
 }
 
 // Explicit Root Route for Vercel
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
-
-db.serialize(() => {
-    db.run("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, first_name TEXT, last_name TEXT, email TEXT UNIQUE, password TEXT, secret_2fa TEXT)");
-    db.run("CREATE TABLE IF NOT EXISTS chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, message TEXT, sender TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id))");
 });
 
 // Initialize Gemini API
