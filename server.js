@@ -22,7 +22,18 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'Ai Chat bot'))); // Serve frontend files
 
 // Database Setup
-const db = new sqlite3.Database('./chatbot.db'); // Persistent DB
+// Database Setup
+const isVercel = process.env.VERCEL === '1';
+const dbFile = isVercel ? ':memory:' : './chatbot.db';
+const db = new sqlite3.Database(dbFile); // Persistent DB or Memory on Vercel
+
+console.log(`Database source: ${isVercel ? 'In-Memory (Vercel)' : 'Local File'}`);
+
+// Explicit Root Route for Vercel
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'Ai Chat bot', 'index.html'));
+});
+
 db.serialize(() => {
     db.run("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, first_name TEXT, last_name TEXT, email TEXT UNIQUE, password TEXT, secret_2fa TEXT)");
     db.run("CREATE TABLE IF NOT EXISTS chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, message TEXT, sender TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id))");
