@@ -320,13 +320,17 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('CRITICAL SERVER ERROR (Unhandled Rejection) at:', promise, 'reason:', reason);
 });
 
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
-    if (process.env.GEMINI_API_KEY) {
-        console.log('API Key detected:', process.env.GEMINI_API_KEY.substring(0, 8) + '...');
-    } else {
-        console.error('CRITICAL ERROR: GEMINI_API_KEY is missing in environment variables!');
-    }
-});
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`Server running at http://localhost:${port}`);
+        if (process.env.GEMINI_API_KEY) {
+            console.log('API Key detected:', process.env.GEMINI_API_KEY.substring(0, 8) + '...');
+        } else {
+            console.error('CRITICAL ERROR: GEMINI_API_KEY is missing in environment variables!');
+        }
+    });
+}
+
+module.exports = app;
 
 module.exports = app;
