@@ -197,9 +197,14 @@ const getGenAI = () => {
     return _genAI;
 };
 
-const SYSTEM_PROMPT = `You are Jojo, a tech-focused AI assistant. You ONLY answer technology-related questions: programming, web dev, software, hardware, networking, AI/ML, cybersecurity, and computer science.
-For non-tech questions, reply: "I'm Jojo, your tech assistant! I only help with tech topics. Ask me about coding, software, or hardware!"
-Be concise and direct.`;
+const SYSTEM_PROMPT = `You are Jojo, a tech assistant. ONLY answer tech questions: coding, web dev, software, hardware, networking, AI/ML, cybersecurity.
+For non-tech questions say: "I'm Jojo, your tech assistant! Ask me about coding, software, or hardware!"
+Be brief and direct.`;
+
+const GENERATION_CONFIG = {
+    maxOutputTokens: 1024,
+    temperature: 0.7,
+};
 
 // --- Chat ---
 app.post('/api/chat', authenticateToken, async (req, res) => {
@@ -231,13 +236,13 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
 
 
         // Stream response via SSE
-        const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
+        const models = ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-flash-latest"];
         let lastError;
         let streamed = false;
 
         for (const modelName of models) {
             try {
-                const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_PROMPT });
+                const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_PROMPT, generationConfig: GENERATION_CONFIG });
                 const chat = model.startChat({ history: formattedHistory });
 
                 // Set SSE headers before first chunk
