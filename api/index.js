@@ -218,10 +218,7 @@ const GENERATION_CONFIG = {
 // --- Chat ---
 app.post('/api/chat', authenticateToken, async (req, res) => {
     try {
-        const genAI = getGenAI();
-        if (!genAI) {
-            return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
-        }
+
         const { message, files, history } = req.body;
 
         if (!message && (!files || files.length === 0)) {
