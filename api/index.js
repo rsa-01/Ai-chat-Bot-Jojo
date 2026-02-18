@@ -213,14 +213,14 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
         if (!genAI) {
             return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
         }
-        const { message, files, sessionId } = req.body;
+        const { message, files, history } = req.body;
 
         if (!message && (!files || files.length === 0)) {
             return res.status(400).json({ error: 'Message or file is required' });
         }
 
-        // No DB on Vercel — skip history fetch, go straight to AI
-        const formattedHistory = [];
+        // Use client-sent history for multi-turn context (last 10 messages max)
+        const formattedHistory = Array.isArray(history) ? history.slice(-10) : [];
 
         let currentParts = [];
         if (message) currentParts.push({ text: message });

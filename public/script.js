@@ -431,6 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addFileBtn = document.getElementById('add-file-btn');
     const filePreviewContainer = document.getElementById('file-preview-container');
     let filesToUpload = [];
+    let conversationHistory = []; // Client-side chat history for multi-turn context
 
     // --- File Upload Logic ---
 
@@ -560,6 +561,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const loadingId = showLoading();
         userInput.disabled = true;
 
+        // Track user message in local history
+        conversationHistory.push({ role: 'user', parts: [{ text: message || '[file attached]' }] });
+
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
@@ -567,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${sessionToken}`
                 },
-                body: JSON.stringify({ message, files: processedFiles, sessionId: chatForm.dataset.currentSessionId })
+                body: JSON.stringify({ message, files: processedFiles, history: conversationHistory.slice(0, -1) })
             });
 
             if (response.status === 401 || response.status === 403) {
@@ -596,7 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (done) break;
                 buffer += decoder.decode(value, { stream: true });
                 const lines = buffer.split('\n');
-                buffer = lines.pop(); // keep incomplete line in buffer
+                buffer = lines.pop();
                 for (const line of lines) {
                     if (!line.startsWith('data: ')) continue;
                     try {
@@ -607,6 +611,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     } catch (e) { }
                 }
+            }
+
+            // Save AI reply to history for next turn, remove blinking cursor
+            if (fullText) {
+                conversationHistory.push({ role: 'model', parts: [{ text: fullText }] });
+                const contentCol = aiMsgDiv.querySelector('.content-col');
+                if (contentCol) contentCol.innerHTML = formatAiText(fullText);
             }
 
         } catch (error) {
