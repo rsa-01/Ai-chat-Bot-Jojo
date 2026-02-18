@@ -231,7 +231,7 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
         db.run("INSERT INTO chat_history (user_id, message, sender, session_id) VALUES (?, ?, ?, ?)", [req.user.id, dbMessage, 'user', sessionId]);
 
         // Generate with fallback
-        const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
+        const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-pro"];
         let lastError;
         let text;
 
