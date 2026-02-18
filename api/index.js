@@ -186,15 +186,23 @@ app.get('/api/session/:sessionId', authenticateToken, (req, res) => {
     });
 });
 
-// --- Cached genAI instance (initialized once, not per-request) ---
-let _genAI = null;
-const getGenAI = () => {
-    if (!_genAI) {
-        const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-        if (!key) return null;
-        _genAI = new GoogleGenerativeAI(key);
+// --- API Key Rotation Pool ---
+const getApiKeys = () => {
+    const keys = [
+        process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+        process.env.GEMINI_API_KEY_2,
+        process.env.GEMINI_API_KEY_3,
+    ].filter(Boolean); // remove undefined/empty
+    return keys;
+};
+
+// Cache a genAI instance per key
+const _genAIPool = {};
+const getGenAIForKey = (key) => {
+    if (!_genAIPool[key]) {
+        _genAIPool[key] = new GoogleGenerativeAI(key);
     }
-    return _genAI;
+    return _genAIPool[key];
 };
 
 const SYSTEM_PROMPT = `You are Jojo, a tech assistant. ONLY answer tech questions: coding, web dev, software, hardware, networking, AI/ML, cybersecurity.
@@ -205,6 +213,7 @@ const GENERATION_CONFIG = {
     maxOutputTokens: 1024,
     temperature: 0.7,
 };
+
 
 // --- Chat ---
 app.post('/api/chat', authenticateToken, async (req, res) => {
@@ -235,15 +244,20 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
         }
 
 
-        // Stream response via SSE — with retry on 429
+        // Stream response via SSE — with Key Rotation & Retry
         const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.0-flash-exp", "gemini-flash-latest"];
+        const keys = getApiKeys(); // Load available keys
         const sleep = (ms) => new Promise(r => setTimeout(r, ms));
         let lastError;
         let streamed = false;
 
+        // Try each model in preference order
         for (const modelName of models) {
-            for (let attempt = 1; attempt <= 3; attempt++) {
+            // For each model, try every available API key
+            for (let i = 0; i < keys.length; i++) {
+                const key = keys[i];
                 try {
+                    const genAI = getGenAIForKey(key);
                     const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_PROMPT, generationConfig: GENERATION_CONFIG });
                     const chat = model.startChat({ history: formattedHistory });
 
@@ -263,19 +277,21 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
                     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
                     res.end();
                     streamed = true;
-                    break;
+                    break; // Success! Break key loop
                 } catch (err) {
                     const is429 = err.message.includes('429') || err.message.includes('quota') || err.message.includes('Quota');
-                    console.warn(`Model ${modelName} attempt ${attempt} failed:`, err.message.substring(0, 80));
+                    console.warn(`Model ${modelName} on Key ${i + 1} failed:`, err.message.substring(0, 80));
                     lastError = err;
-                    if (is429 && attempt < 3) {
-                        await sleep(attempt * 2000); // 2s, then 4s
+
+                    if (is429) {
+                        // If rate limited, try next key immediately
                         continue;
                     }
-                    break; // non-429 error or max retries — try next model
+                    // Non-429 error (e.g. safety, 500) — likely model specific, break key loop and try next model
+                    break;
                 }
             }
-            if (streamed) break;
+            if (streamed) break; // Success! Break model loop
         }
 
 
