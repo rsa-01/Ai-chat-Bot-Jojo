@@ -19,19 +19,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-this';
 // Middleware
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'public'))); // Serve frontend files
+app.use(express.static(path.join(__dirname, '..', 'public'))); // Serve frontend files
 
 // Database Setup
-// Database Setup
 const isVercel = process.env.VERCEL === '1';
-const dbFile = isVercel ? ':memory:' : './chatbot.db';
-const db = new sqlite3.Database(dbFile); // Persistent DB or Memory on Vercel
+const dbFile = isVercel ? ':memory:' : path.join(__dirname, '..', 'chatbot.db');
+const db = new sqlite3.Database(dbFile);
 
 console.log(`Database source: ${isVercel ? 'In-Memory (Vercel)' : 'Local File'}`);
 
 // Explicit Root Route for Vercel
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
 db.serialize(() => {
