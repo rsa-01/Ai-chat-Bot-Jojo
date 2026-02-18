@@ -32,7 +32,8 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public'))); // Serve frontend files
 
 // Database Setup
-let isVercel = process.env.VERCEL === '1' || !!process.env.AWS_LAMBDA_FUNCTION_VERSION;
+// FORCE MOCK DB FOR DEBUGGING: We assume we are on Vercel if this file is running
+let isVercel = true; // process.env.VERCEL === '1'; 
 let db;
 
 const initializeMockDB = () => {
@@ -142,7 +143,14 @@ if (isVercel) {
 
 // Explicit Root Route for Vercel
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+    const fs = require('fs');
+    const indexPath = path.join(__dirname, '..', 'public', 'index.html');
+
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.send('<h1>App is running!</h1><p>But index.html was not found at expected path: ' + indexPath + '</p><p>Debug: ' + __dirname + '</p>');
+    }
 });
 
 // Initialize Gemini API
