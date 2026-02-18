@@ -214,22 +214,8 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'Message or file is required' });
         }
 
-        // Fetch only last 6 messages for context (faster than 20)
-        const historyRows = await new Promise((resolve) => {
-            const q = sessionId
-                ? "SELECT message, sender FROM chat_history WHERE user_id = ? AND session_id = ? ORDER BY timestamp DESC LIMIT 6"
-                : "SELECT message, sender FROM chat_history WHERE user_id = ? ORDER BY timestamp DESC LIMIT 6";
-            const p = sessionId ? [req.user.id, sessionId] : [req.user.id];
-            db.all(q, p, (err, rows) => resolve(rows ? rows.reverse() : []));
-        });
-
-        let formattedHistory = historyRows.map(row => ({
-            role: row.sender === 'user' ? 'user' : 'model',
-            parts: [{ text: row.message }]
-        }));
-        while (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
-            formattedHistory.shift();
-        }
+        // No DB on Vercel — skip history fetch, go straight to AI
+        const formattedHistory = [];
 
         let currentParts = [];
         if (message) currentParts.push({ text: message });
@@ -243,9 +229,6 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
             });
         }
 
-        // Fire-and-forget: save user message without awaiting
-        const dbMessage = message + (files && files.length > 0 ? ` [+${files.length} file(s)]` : '');
-        db.run("INSERT INTO chat_history (user_id, message, sender, session_id) VALUES (?, ?, ?, ?)", [req.user.id, dbMessage, 'user', sessionId]);
 
         // Try fastest model first, fallback only if needed
         const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
@@ -267,8 +250,6 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
 
         if (!text) throw lastError || new Error("All models failed");
 
-        // Fire-and-forget: save AI response without awaiting
-        db.run("INSERT INTO chat_history (user_id, message, sender, session_id) VALUES (?, ?, ?, ?)", [req.user.id, text, 'ai', sessionId]);
 
         res.json({ reply: text });
 
