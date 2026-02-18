@@ -227,11 +227,12 @@ body {
 
 /* .message.ai icon updated */
 .message.ai .icon-col {
-    width: 30px;
-    height: 30px;
-    background: url('logo.png') no-repeat center;
+    width: 36px;
+    height: 36px;
+    background: url('jojo-avatar.svg') no-repeat center;
     background-size: contain;
     flex-shrink: 0;
+    border-radius: 50%;
 }
 
 .message.ai .content-col {
