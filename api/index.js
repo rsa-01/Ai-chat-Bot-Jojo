@@ -13,11 +13,13 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-this';
 
 // --- Debug Route ---
 app.get('/api/debug', (req, res) => {
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     res.json({
         status: 'ok',
         isVercel: !!process.env.VERCEL,
         nodeVersion: process.version,
-        hasGeminiKey: !!process.env.GEMINI_API_KEY,
+        hasGeminiKey: !!geminiKey,
+        geminiKeyName: process.env.GEMINI_API_KEY ? 'GEMINI_API_KEY' : (process.env.GOOGLE_GENERATIVE_AI_API_KEY ? 'GOOGLE_GENERATIVE_AI_API_KEY' : 'MISSING'),
         hasJwtSecret: !!process.env.JWT_SECRET,
         cwd: process.cwd()
     });
@@ -187,10 +189,11 @@ app.get('/api/session/:sessionId', authenticateToken, (req, res) => {
 // --- Chat ---
 app.post('/api/chat', authenticateToken, async (req, res) => {
     try {
-        if (!process.env.GEMINI_API_KEY) {
+        const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+        if (!geminiKey) {
             return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
         }
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const genAI = new GoogleGenerativeAI(geminiKey);
         const { message, files, sessionId } = req.body;
 
         if (!message && (!files || files.length === 0)) {
