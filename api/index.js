@@ -235,37 +235,49 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
         }
 
 
-        // Stream response via SSE
+        // Stream response via SSE — with retry on 429
         const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.0-flash-exp", "gemini-flash-latest"];
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
         let lastError;
         let streamed = false;
 
         for (const modelName of models) {
-            try {
-                const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_PROMPT, generationConfig: GENERATION_CONFIG });
-                const chat = model.startChat({ history: formattedHistory });
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_PROMPT, generationConfig: GENERATION_CONFIG });
+                    const chat = model.startChat({ history: formattedHistory });
 
-                // Set SSE headers before first chunk
-                res.setHeader('Content-Type', 'text/event-stream');
-                res.setHeader('Cache-Control', 'no-cache');
-                res.setHeader('Connection', 'keep-alive');
-
-                const result = await chat.sendMessageStream(currentParts);
-                for await (const chunk of result.stream) {
-                    const chunkText = chunk.text();
-                    if (chunkText) {
-                        res.write(`data: ${JSON.stringify({ chunk: chunkText })}\n\n`);
+                    if (!res.headersSent) {
+                        res.setHeader('Content-Type', 'text/event-stream');
+                        res.setHeader('Cache-Control', 'no-cache');
+                        res.setHeader('Connection', 'keep-alive');
                     }
+
+                    const result = await chat.sendMessageStream(currentParts);
+                    for await (const chunk of result.stream) {
+                        const chunkText = chunk.text();
+                        if (chunkText) {
+                            res.write(`data: ${JSON.stringify({ chunk: chunkText })}\n\n`);
+                        }
+                    }
+                    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+                    res.end();
+                    streamed = true;
+                    break;
+                } catch (err) {
+                    const is429 = err.message.includes('429') || err.message.includes('quota') || err.message.includes('Quota');
+                    console.warn(`Model ${modelName} attempt ${attempt} failed:`, err.message.substring(0, 80));
+                    lastError = err;
+                    if (is429 && attempt < 3) {
+                        await sleep(attempt * 2000); // 2s, then 4s
+                        continue;
+                    }
+                    break; // non-429 error or max retries — try next model
                 }
-                res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-                res.end();
-                streamed = true;
-                break;
-            } catch (err) {
-                console.warn(`Model ${modelName} failed:`, err.message.substring(0, 80));
-                lastError = err;
             }
+            if (streamed) break;
         }
+
 
         if (!streamed) throw lastError || new Error("All models failed");
 
