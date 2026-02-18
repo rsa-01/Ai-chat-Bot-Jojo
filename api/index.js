@@ -6,10 +6,23 @@ const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { TOTP, generateURI } = require('otplib');
-const { crypto } = require('@otplib/plugin-crypto-noble');
-const { base32 } = require('@otplib/plugin-base32-scure');
-const qrcode = require('qrcode');
+const jwt = require('jsonwebtoken');
+
+// 2FA Libraries with Fallback
+let TOTP, generateURI, crypto, base32, qrcode;
+let is2FASupported = true;
+
+try {
+    const otplib = require('otplib');
+    TOTP = otplib.TOTP;
+    generateURI = otplib.generateURI;
+    crypto = require('@otplib/plugin-crypto-noble').crypto;
+    base32 = require('@otplib/plugin-base32-scure').base32;
+    qrcode = require('qrcode');
+} catch (err) {
+    console.error('Failed to load 2FA libraries:', err.message);
+    is2FASupported = false;
+}
 
 const app = express();
 const port = process.env.PORT || 3000;

@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node api/index.js"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@otplib/plugin-base32-scure": "^13.3.0",
