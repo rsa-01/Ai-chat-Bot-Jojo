@@ -196,8 +196,9 @@ app.post('/api/register', async (req, res) => {
     if (!first_name || !last_name || !email || !password) return res.status(400).json({ error: 'All fields are required' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const secret = authenticator.generateSecret(); // Generate 2FA secret immediately
-    console.log(`[Register] Generated secret for ${email}: ${secret}`);
+    // const secret = authenticator.generateSecret(); // 2FA Disabled
+    const secret = null;
+    console.log(`[Register] User registered: ${email}`);
 
     db.run("INSERT INTO users (first_name, last_name, email, password, secret_2fa) VALUES (?, ?, ?, ?, ?)", [first_name, last_name, email, hashedPassword, secret], function (err) {
         if (err) {
@@ -205,8 +206,7 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ error: 'Email already registered' });
         }
         console.log(`[Register] User created with ID: ${this.lastID}`);
-        // Return the secret so frontend can generate QR code immediately
-        res.json({ message: 'User registered', userId: this.lastID, secret: secret });
+        res.json({ message: 'User registered', userId: this.lastID });
     });
 });
 
@@ -236,8 +236,9 @@ app.post('/api/login', (req, res) => {
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) return res.status(401).json({ error: 'Invalid credentials' });
 
-        // Password correct, require 2FA
-        res.json({ message: '2FA required', userId: user.id });
+        // Password correct, 2FA DISABLED -> Generate Token Immediately
+        const sessionToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+        res.json({ token: sessionToken, userId: user.id });
     });
 });
 
