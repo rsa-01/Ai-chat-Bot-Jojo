@@ -32,8 +32,8 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public'))); // Serve frontend files
 
 // Database Setup
-// FORCE MOCK DB FOR DEBUGGING: We assume we are on Vercel if this file is running
-let isVercel = true; // process.env.VERCEL === '1'; 
+// Database Setup
+let isVercel = process.env.VERCEL === '1' || !!process.env.AWS_LAMBDA_FUNCTION_VERSION;
 let db;
 
 const initializeMockDB = () => {
