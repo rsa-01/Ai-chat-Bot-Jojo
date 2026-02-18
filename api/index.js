@@ -186,25 +186,39 @@ app.get('/api/session/:sessionId', authenticateToken, (req, res) => {
     });
 });
 
+// --- Cached genAI instance (initialized once, not per-request) ---
+let _genAI = null;
+const getGenAI = () => {
+    if (!_genAI) {
+        const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+        if (!key) return null;
+        _genAI = new GoogleGenerativeAI(key);
+    }
+    return _genAI;
+};
+
+const SYSTEM_PROMPT = `You are Jojo, a tech-focused AI assistant. You ONLY answer technology-related questions: programming, web dev, software, hardware, networking, AI/ML, cybersecurity, and computer science.
+For non-tech questions, reply: "I'm Jojo, your tech assistant! I only help with tech topics. Ask me about coding, software, or hardware!"
+Be concise and direct.`;
+
 // --- Chat ---
 app.post('/api/chat', authenticateToken, async (req, res) => {
     try {
-        const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-        if (!geminiKey) {
+        const genAI = getGenAI();
+        if (!genAI) {
             return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
         }
-        const genAI = new GoogleGenerativeAI(geminiKey);
         const { message, files, sessionId } = req.body;
 
         if (!message && (!files || files.length === 0)) {
             return res.status(400).json({ error: 'Message or file is required' });
         }
 
-        // Fetch history
+        // Fetch only last 6 messages for context (faster than 20)
         const historyRows = await new Promise((resolve) => {
             const q = sessionId
-                ? "SELECT message, sender FROM chat_history WHERE user_id = ? AND session_id = ? ORDER BY timestamp DESC LIMIT 20"
-                : "SELECT message, sender FROM chat_history WHERE user_id = ? ORDER BY timestamp DESC LIMIT 20";
+                ? "SELECT message, sender FROM chat_history WHERE user_id = ? AND session_id = ? ORDER BY timestamp DESC LIMIT 6"
+                : "SELECT message, sender FROM chat_history WHERE user_id = ? ORDER BY timestamp DESC LIMIT 6";
             const p = sessionId ? [req.user.id, sessionId] : [req.user.id];
             db.all(q, p, (err, rows) => resolve(rows ? rows.reverse() : []));
         });
@@ -222,50 +236,38 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
         if (files && files.length > 0) {
             files.forEach(file => {
                 if (file.isText) {
-                    currentParts.push({ text: `\n\n[Attached File: ${file.name}]\n${file.content}\n` });
+                    currentParts.push({ text: `\n\n[File: ${file.name}]\n${file.content}\n` });
                 } else {
                     currentParts.push({ inlineData: { mimeType: file.type, data: file.content } });
                 }
             });
         }
 
-        // Save user message
-        const dbMessage = message + (files && files.length > 0 ? ` [Attached ${files.length} file(s)]` : '');
+        // Fire-and-forget: save user message without awaiting
+        const dbMessage = message + (files && files.length > 0 ? ` [+${files.length} file(s)]` : '');
         db.run("INSERT INTO chat_history (user_id, message, sender, session_id) VALUES (?, ?, ?, ?)", [req.user.id, dbMessage, 'user', sessionId]);
 
-        // Generate with fallback
+        // Try fastest model first, fallback only if needed
         const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
         let lastError;
         let text;
 
         for (const modelName of models) {
             try {
-                const model = genAI.getGenerativeModel({
-                    model: modelName, systemInstruction: `You are Jojo, an expert AI assistant specialized exclusively in technology topics. You help with:
-- Programming & software development (all languages, frameworks, tools)
-- Web development (HTML, CSS, JavaScript, React, Node.js, etc.)
-- Cybersecurity & networking
-- Hardware, operating systems, and computer science concepts
-- AI/ML, data science, and cloud computing
-- Tech troubleshooting and debugging
-- Software architecture and system design
-
-If a user asks about anything NOT related to technology (e.g. cooking, relationships, sports, general knowledge), politely decline and remind them you are a tech-focused assistant. Say something like: "I'm Jojo, your tech assistant! I can only help with technology-related topics. Feel free to ask me anything about programming, software, hardware, or tech!"
-
-Always be helpful, concise, and accurate for tech questions.` });
+                const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_PROMPT });
                 const chat = model.startChat({ history: formattedHistory });
                 const result = await chat.sendMessage(currentParts);
                 text = result.response.text();
                 break;
             } catch (err) {
-                console.warn(`Model ${modelName} failed:`, err.message);
+                console.warn(`Model ${modelName} failed:`, err.message.substring(0, 80));
                 lastError = err;
             }
         }
 
         if (!text) throw lastError || new Error("All models failed");
 
-        // Save AI response
+        // Fire-and-forget: save AI response without awaiting
         db.run("INSERT INTO chat_history (user_id, message, sender, session_id) VALUES (?, ?, ?, ?)", [req.user.id, text, 'ai', sessionId]);
 
         res.json({ reply: text });
@@ -287,8 +289,9 @@ process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:
 if (require.main === module) {
     app.listen(port, () => {
         console.log(`Server running at http://localhost:${port}`);
-        console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'SET' : 'MISSING');
+        console.log('GEMINI_API_KEY:', (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) ? 'SET' : 'MISSING');
     });
 }
 
 module.exports = app;
+
